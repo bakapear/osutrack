@@ -55,11 +55,16 @@ function send (obj) {
 }
 
 async function osuRecent (id) {
-  let { body } = await dp('https://osu.ppy.sh/users/' + id)
-  let pointer = body.indexOf('json-extras') + 37
-  let json = JSON.parse(body.substring(pointer, body.indexOf('</script>', pointer)))
-  let recent = json.scoresRecent
-  return recent
+  try {
+    let { body } = await dp('https://osu.ppy.sh/users/' + id)
+    let pointer = body.indexOf('json-extras') + 37
+    let json = JSON.parse(body.substring(pointer, body.indexOf('</script>', pointer)))
+    let recent = json.scoresRecent
+    return recent
+  } catch (e) {
+    console.error(e)
+    return []
+  }
 }
 
 let RANK = {
