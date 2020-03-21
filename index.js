@@ -1,5 +1,6 @@
 let dp = require('despair')
 let Corrin = require('corrin')
+let hook = process.env.HOOK
 
 let track = ['4949888', '7230263', '14552691', '13833303', '10870965'] // osu! user_id's to track
 
@@ -38,6 +39,7 @@ feed.on('new', items => {
           url: rank.img
         }
       })
+      log(item)
     }
     send({
       username: user.name,
@@ -47,8 +49,16 @@ feed.on('new', items => {
   }
 })
 
+function log (obj) {
+  console.log([
+    `${obj.user.username} (${obj.rank}) >`,
+    `${obj.beatmapset.title} - ${obj.beatmapset.artist}`,
+    `[${obj.beatmap.difficulty_rating} ☆ ${obj.beatmap.version}]`
+  ].join(' '))
+}
+
 function send (obj) {
-  dp.post(process.env.HOOK, {
+  dp.post(hook, {
     data: obj,
     type: 'json'
   })
