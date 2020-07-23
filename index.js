@@ -4,7 +4,7 @@ let hook = process.env.HOOK
 
 let track = ['4949888', '7230263', '14552691', '13833303', '10870965'] // osu! user_id's to track
 
-let feed = new Corrin(track.map(x => [() => osuRecent(x), x => x.id]))
+let feed = new Corrin(track.map(x => [async () => recent(x), x => x.id]))
 console.log(`Tracking: (${track.join(', ')})`)
 
 feed.on('new', items => {
@@ -14,31 +14,7 @@ feed.on('new', items => {
     for (let i = 0; i < items[prop].length; i++) {
       let item = items[prop][i]
       if (!user) user = { name: item.user.username, avatar: item.user.avatar_url }
-      let rank = RANK[item.rank]
-      embeds.push({
-        title: `${item.beatmapset.title} - ${item.beatmapset.artist} [${item.beatmap.difficulty_rating} ☆ ${item.beatmap.version}]`,
-        color: rank.color,
-        url: item.beatmap.url,
-        description: [
-          item.mods.length ? `**Mods** ${item.mods.join('')} ` : '',
-          `**Accuracy** ${(item.accuracy * 100).toFixed(2)}% `,
-          `**Combo** ${item.max_combo} `,
-          item.pp ? `**PP** ${parseInt(item.pp)}\n` : '\n',
-          item.statistics ? [
-            `**300** ${item.statistics.count_300} `,
-            `**100** ${item.statistics.count_100} `,
-            `**50** ${item.statistics.count_50} `,
-            `**Miss** ${item.statistics.count_miss}`
-          ].join('') : ''
-        ].join(''),
-        timestamp: item.created_at,
-        footer: {
-          text: item.user.username
-        },
-        thumbnail: {
-          url: rank.img
-        }
-      })
+      embeds.push(embed(item))
       log(item)
     }
     send({
@@ -49,11 +25,36 @@ feed.on('new', items => {
   }
 })
 
-function log (obj) {
+function embed (item) {
+  let mods = item.mods.length ? `+${item.mods.join('')}` : ''
+  let rank = RANK[item.rank]
+  let stats = item.statistics
+  return {
+    title: `${item.beatmapset.title} [${item.beatmap.version} ★ ${item.beatmap.difficulty_rating}] ${mods}`,
+    url: item.beatmap.url,
+    description: [
+      [
+        rank.emote,
+        `**${item.pp || 0}PP**`,
+        `${(item.accuracy * 100).toFixed(2)}%`,
+        item.score
+      ],
+      [
+        `**${item.max_combo}x**`,
+        `{ ${stats.count_300} / ${stats.count_100} / ${stats.count_50} }`,
+        item.perfect ? 'PERFECT' : `${stats.count_miss} ${stats.count_miss === 1 ? 'Miss' : 'Misses'}`
+      ]
+    ].map(x => x.join(' ▸ ')).join('\n'),
+    color: rank.color,
+    timestamp: item.created_at,
+    thumbnail: { url: item.beatmapset.covers['list@2x'] }
+  }
+}
+
+function log (item) {
   console.log([
-    `${obj.user.username} (${obj.rank}) >`,
-    `${obj.beatmapset.title} - ${obj.beatmapset.artist}`,
-    `[${obj.beatmap.difficulty_rating} ☆ ${obj.beatmap.version}]`
+      `${item.user.username} (${item.rank}) >`,
+      `${item.beatmapset.title} [${item.beatmap.difficulty_rating} ★ ${item.beatmap.version}]`
   ].join(' '))
 }
 
@@ -64,26 +65,23 @@ function send (obj) {
   })
 }
 
-async function osuRecent (id) {
+async function recent (id, retries = 5) {
+  if (retries <= 0) throw new Error('Could not fetch site')
   try {
     let { body } = await dp('https://osu.ppy.sh/users/' + id)
     let pointer = body.indexOf('json-extras') + 37
     let json = JSON.parse(body.substring(pointer, body.indexOf('</script>', pointer)))
-    let recent = json.scoresRecent
-    return recent
-  } catch (e) {
-    console.error(e)
-    return []
-  }
+    return json.scoresRecent
+  } catch (e) { return recent(id, --retries) }
 }
 
 let RANK = {
-  D: { img: 'https://i.imgur.com/qiI2lGV.png', color: 9967895 },
-  C: { img: 'https://i.imgur.com/kkvExOR.png', color: 14377691 },
-  B: { img: 'https://i.imgur.com/njIcLQV.png', color: 3492295 },
-  A: { img: 'https://i.imgur.com/RGOohGm.png', color: 6795600 },
-  S: { img: 'https://i.imgur.com/UcekL5e.png', color: 14598211 },
-  SH: { img: 'https://i.imgur.com/cvTSy9Q.png', color: 12308694 },
-  X: { img: 'https://i.imgur.com/w8uxl3o.png', color: 14598211 },
-  XH: { img: 'https://i.imgur.com/LEJgPJs.png', color: 12308694 }
+  D: { emote: '<:D:365509580651757568>', color: 9967895 },
+  C: { emote: '<:C:365509580517801995>', color: 14377691 },
+  B: { emote: '<:B:365509580664602625>', color: 3492295 },
+  A: { emote: '<:A:365509580593299466>', color: 6795600 },
+  S: { emote: '<:S:365509580731449354>', color: 14598211 },
+  SH: { emote: '<:SH:365509580681248768>', color: 12308694 },
+  X: { emote: '<:X:365509580622659585>', color: 14598211 },
+  XH: { emote: '<XH:365509580718997504>', color: 12308694 }
 }
