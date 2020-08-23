@@ -2,7 +2,7 @@ let dp = require('despair')
 let Corrin = require('corrin')
 let hook = process.env.HOOK
 
-let track = ['4949888', '7230263', '14552691', '13833303', '10870965'] // osu! user_id's to track
+let track = ['4949888', '7230263', '14552691', '13833303'] // osu! user_id's to track
 
 let feed = new Corrin(track.map(x => [async () => recent(x), x => x.id]))
 console.log(`Tracking: (${track.join(', ')})`)
@@ -29,13 +29,14 @@ function embed (item) {
   let mods = item.mods.length ? `+${item.mods.join('')}` : ''
   let rank = RANK[item.rank]
   let stats = item.statistics
+  let map = item.beatmap
   return {
-    title: `${item.beatmapset.title} [${item.beatmap.version} ★ ${item.beatmap.difficulty_rating}] ${mods}`,
-    url: item.beatmap.url,
+    title: `${item.beatmapset.title} [${map.version} ★ ${map.difficulty_rating}] ${mods}`,
+    url: map.url,
     description: [
       [
         rank.emote,
-        `**${item.pp || 0}PP**`,
+        `**${parseInt(item.pp) || 0} PP**`,
         `${(item.accuracy * 100).toFixed(2)}%`,
         item.score
       ],
@@ -43,6 +44,17 @@ function embed (item) {
         `**${item.max_combo}x**`,
         `{ ${stats.count_300} / ${stats.count_100} / ${stats.count_50} }`,
         item.perfect ? 'PERFECT' : `${stats.count_miss} ${stats.count_miss === 1 ? 'Miss' : 'Misses'}`
+      ], [],
+      [
+        `**${map.status[0].toUpperCase() + map.status.substr(1)}** ${new Date(map.last_updated).getFullYear()}`,
+        `${map.bpm} BPM`,
+        `${time(map.hit_length * 1000)}`
+      ],
+      [
+        `${map.cs} CS`,
+        `${map.ar} AR`,
+        `${map.accuracy} OD`,
+        `${map.drain} HP`
       ]
     ].map(x => x.join(' ▸ ')).join('\n'),
     color: rank.color,
@@ -73,6 +85,18 @@ async function recent (id, retries = 5) {
     let json = JSON.parse(body.substring(pointer, body.indexOf('</script>', pointer)))
     return json.scoresRecent
   } catch (e) { return recent(id, --retries) }
+}
+
+function time (ms) {
+  let t = new Date(ms).toISOString().substr(11, 8).split(':')
+  let h = Math.floor(ms / 1000 / 60 / 60).toString()
+  if (h > 23) t[0] = h
+  while (t.length > 2 && t[0] === '00' && t[1].startsWith('0')) {
+    t.shift()
+  }
+  if (t.length > 2 && t[0] === '00') t.shift()
+  if (t[0].startsWith('0')) t[0] = t[0].substr(1)
+  return t.join(':')
 }
 
 let RANK = {
