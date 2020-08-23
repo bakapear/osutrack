@@ -46,7 +46,8 @@ function embed (item) {
         item.perfect ? 'PERFECT' : `${stats.count_miss} ${stats.count_miss === 1 ? 'Miss' : 'Misses'}`
       ], [],
       [
-        `**${map.status[0].toUpperCase() + map.status.substr(1)}** ${new Date(map.last_updated).getFullYear()}`,
+        `**${map.status[0].toUpperCase() + map.status.substr(1)}**`,
+        new Date(map.last_updated).getFullYear(),
         `${map.bpm} BPM`,
         `${time(map.hit_length * 1000)}`
       ],
