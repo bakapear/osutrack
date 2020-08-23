@@ -56,7 +56,8 @@ function embed (item) {
         `${map.ar} AR`,
         `${map.accuracy} OD`,
         `${map.drain} HP`
-      ]
+      ],
+      item.replay ? `[Download Replay](https://osu.ppy.sh/scores/osu/${item.best_id}/download)` : []
     ].map(x => x.join(' ▸ ')).join('\n'),
     color: rank.color,
     timestamp: item.created_at,
