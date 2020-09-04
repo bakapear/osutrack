@@ -1,20 +1,24 @@
 let dp = require('despair')
+let oj = require('ojsama')
 let Corrin = require('corrin')
-let hook = process.env.HOOK
 
-let track = ['4949888', '7230263', '14552691', '13833303'] // osu! user_id's to track
+let hook = process.env.HOOK
+let track = process.env.TRACK
+
+if (!hook || !track) throw new Error('One or more required environment variables are not set!')
+track = track.split(',')
 
 let feed = new Corrin(track.map(x => [async () => recent(x), x => x.id]))
 console.log(`Tracking: (${track.join(', ')})`)
 
-feed.on('new', items => {
+feed.on('new', async items => {
   for (let prop in items) {
     let embeds = []
     let user = null
     for (let i = 0; i < items[prop].length; i++) {
       let item = items[prop][i]
       if (!user) user = { name: item.user.username, avatar: item.user.avatar_url }
-      embeds.push(embed(item))
+      embeds.push(await embed(item))
       log(item)
     }
     send({
@@ -25,62 +29,6 @@ feed.on('new', items => {
   }
 })
 
-function embed (item) {
-  let mods = item.mods.length ? `+${item.mods.join('')}` : ''
-  let rank = RANK[item.rank]
-  let stats = item.statistics
-  let map = item.beatmap
-  return {
-    title: `${item.beatmapset.title} [${map.version} ★ ${map.difficulty_rating}] ${mods}`,
-    url: map.url,
-    description: [
-      [
-        rank.emote,
-        `**${parseInt(item.pp) || 0} PP**`,
-        `${(item.accuracy * 100).toFixed(2)}%`,
-        item.score
-      ],
-      [
-        `**${item.max_combo}x**`,
-        `{ ${stats.count_300} / ${stats.count_100} / ${stats.count_50} }`,
-        item.perfect ? 'PERFECT' : `${stats.count_miss} ${stats.count_miss === 1 ? 'Miss' : 'Misses'}`
-      ], [],
-      [
-        `**${map.status[0].toUpperCase() + map.status.substr(1)}**`,
-        new Date(map.last_updated).getFullYear(),
-        `${map.bpm} BPM`,
-        `${time(map.hit_length * 1000)}`
-      ],
-      [
-        `${map.cs} CS`,
-        `${map.ar} AR`,
-        `${map.accuracy} OD`,
-        `${map.drain} HP`
-      ],
-      [
-        item.replay ? `[Download Replay](https://osu.ppy.sh/scores/osu/${item.best_id}/download)` : ''
-      ]
-    ].map(x => x.join(' ▸ ')).join('\n'),
-    color: rank.color,
-    timestamp: item.created_at,
-    thumbnail: { url: item.beatmapset.covers['list@2x'] }
-  }
-}
-
-function log (item) {
-  console.log([
-      `${item.user.username} (${item.rank}) >`,
-      `${item.beatmapset.title} [${item.beatmap.difficulty_rating} ★ ${item.beatmap.version}]`
-  ].join(' '))
-}
-
-function send (obj) {
-  dp.post(hook, {
-    data: obj,
-    type: 'json'
-  })
-}
-
 async function recent (id, retries = 5) {
   if (retries <= 0) throw new Error('Could not fetch site')
   try {
@@ -89,6 +37,65 @@ async function recent (id, retries = 5) {
     let json = JSON.parse(body.substring(pointer, body.indexOf('</script>', pointer)))
     return json.scoresRecent
   } catch (e) { return recent(id, --retries) }
+}
+
+async function embed (item) {
+  let rank = RANK[item.rank]
+  let stats = item.statistics
+  let map = item.beatmap
+  let accuracy = (item.accuracy * 100).toFixed(2)
+  let data = await calc(map.id, parseFloat(accuracy), stats.max_combo, stats.count_miss, item.mods.join(''))
+  return {
+    color: rank.color,
+    title: `${item.beatmapset.title} [${map.version} ★ ${map.difficulty_rating}]` +
+      (item.mods.length ? ` +${item.mods.join('')}` : ''),
+    url: map.url,
+    description: [
+      [
+        `${item.pp ? data.pp.gain : `~~${data.pp.gain}~~`}/${data.pp.total}pp`,
+        `${item.max_combo}/${data.max_combo}x`,
+        accuracy + '%'
+      ],
+      [
+        '[ ' + [
+          '**300** x' + stats.count_300,
+          '**100** x' + stats.count_100,
+          '**50** x' + stats.count_50
+        ].join(' • ') + ' ]',
+        '[' + (item.perfect ? '**FC**' : `${stats.count_miss} ${stats.count_miss === 1 ? 'Miss' : 'Misses'}`) + '](' +
+        (item.replay ? `https://osu.ppy.sh/scores/osu/${item.best_id}/download` : '') + ')'
+      ]
+    ].map(x => x.join(' • ')).join('\n'),
+    thumbnail: { url: rank.img },
+    image: { url: item.beatmapset.covers.slimcover },
+    footer: {
+      text: [
+        new Date(map.last_updated).getFullYear() + ' ' + map.status[0].toUpperCase() + map.status.substr(1),
+        map.bpm + ' BPM',
+        time(map.hit_length * 1000),
+        [
+          `${map.cs} CS`,
+          `${map.ar} AR`,
+          `${map.accuracy} OD`,
+          `${map.drain} HP`
+        ].join(' | ')
+      ].join(' • ')
+    }
+  }
+}
+
+async function calc (id, acc, combo, miss, mods) {
+  let { body } = await dp('https://osu.ppy.sh/osu/' + id)
+  let Parser = oj.parser
+  const { map } = new Parser().feed(body)
+  map.mode = Number(map.mode || 0)
+  return {
+    max_combo: map.max_combo(),
+    pp: {
+      gain: parseInt(oj.ppv2({ map, acc_percent: parseFloat(acc), max_combo: combo, nmiss: miss, mods: oj.modbits.from_string(mods) }).total),
+      total: parseInt(oj.ppv2({ map }).total)
+    }
+  }
 }
 
 function time (ms) {
@@ -103,13 +110,27 @@ function time (ms) {
   return t.join(':')
 }
 
+function send (obj) {
+  dp.post(hook, {
+    data: obj,
+    type: 'json'
+  })
+}
+
+function log (item) {
+  console.log([
+    `${item.user.username} (${item.rank}) >`,
+    `${item.beatmapset.title} [${item.beatmap.difficulty_rating} ★ ${item.beatmap.version}]`
+  ].join(' '))
+}
+
 let RANK = {
-  D: { emote: '<:D:365509580651757568>', color: 9967895 },
-  C: { emote: '<:C:365509580517801995>', color: 14377691 },
-  B: { emote: '<:B:365509580664602625>', color: 3492295 },
-  A: { emote: '<:A:365509580593299466>', color: 6795600 },
-  S: { emote: '<:S:365509580731449354>', color: 14598211 },
-  SH: { emote: '<:SH:365509580681248768>', color: 12308694 },
-  X: { emote: '<:X:365509580622659585>', color: 14598211 },
-  XH: { emote: '<XH:365509580718997504>', color: 12308694 }
+  D: { img: 'https://i.imgur.com/qiI2lGV.png', color: 9967895 },
+  C: { img: 'https://i.imgur.com/kkvExOR.png', color: 14377691 },
+  B: { img: 'https://i.imgur.com/njIcLQV.png', color: 3492295 },
+  A: { img: 'https://i.imgur.com/RGOohGm.png', color: 6795600 },
+  S: { img: 'https://i.imgur.com/UcekL5e.png', color: 14598211 },
+  SH: { img: 'https://i.imgur.com/cvTSy9Q.png', color: 12308694 },
+  X: { img: 'https://i.imgur.com/w8uxl3o.png', color: 14598211 },
+  XH: { img: 'https://i.imgur.com/LEJgPJs.png', color: 12308694 }
 }
