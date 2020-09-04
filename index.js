@@ -46,7 +46,7 @@ async function embed (item) {
   let accuracy = (item.accuracy * 100).toFixed(2)
   let data = await calc(map.id, parseFloat(accuracy), stats.max_combo, stats.count_miss, item.mods.join(''))
   let cover = item.beatmapset.covers.slimcover
-  if (!await dp.head(cover).catch(e => false)) cover = 'https://i.imgur.com/zJTJuop.jpg'
+  if (!await dp.head(cover).catch(e => false)) cover = 'https://i.imgur.com/DNZTUG0.png'
   return {
     color: rank.color,
     title: `${item.beatmapset.title} [${map.version} ★ ${map.difficulty_rating}]` +
