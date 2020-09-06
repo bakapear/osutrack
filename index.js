@@ -54,7 +54,7 @@ async function embed (item) {
     url: map.url,
     description: [
       [
-        `${item.pp ? data.pp.gain : `~~${data.pp.gain}~~`}/${data.pp.total}pp`,
+        `[${item.pp ? `**${data.pp.gain}**` : `~~**${data.pp.gain}**~~`}/${data.pp.total}pp](https://osu.ppy.sh/u/${item.user_id})`,
         `${item.max_combo}/${data.max_combo}x`,
         accuracy + '%'
       ],
@@ -64,8 +64,7 @@ async function embed (item) {
           '**100** x' + stats.count_100,
           '**50** x' + stats.count_50
         ].join(' • ') + ' ]',
-        '[' + (item.perfect ? '**FC**' : `${stats.count_miss} ${stats.count_miss === 1 ? 'Miss' : 'Misses'}`) + '](' +
-        (item.replay ? `https://osu.ppy.sh/scores/osu/${item.best_id}/download` : '') + ')'
+        item.perfect ? '**FC**' : `${stats.count_miss} ${stats.count_miss === 1 ? 'Miss' : 'Misses'}`
       ]
     ].map(x => x.join(' • ')).join('\n'),
     thumbnail: { url: rank.img },
