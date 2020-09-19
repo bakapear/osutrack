@@ -94,7 +94,7 @@ async function calc (id, acc, combo, miss, mods) {
     max_combo: map.max_combo(),
     pp: {
       gain: parseInt(oj.ppv2({ map, acc_percent: parseFloat(acc), combo: combo, nmiss: miss, mods: oj.modbits.from_string(mods) }).total),
-      total: parseInt(oj.ppv2({ map }).total)
+      total: parseInt(oj.ppv2({ map, mods: oj.modbits.from_string(mods) }).total)
     }
   }
 }
