@@ -1,14 +1,21 @@
 let dp = require('despair')
 let oj = require('ojsama')
 let Corrin = require('corrin')
+let API = require('./API')
 
+let interval = 5000 // increase this if you have many users to track
+
+let id = process.env.CLIENT_ID
+let secret = process.env.CLIENT_SECRET
 let hook = process.env.HOOK
 let track = process.env.TRACK
 
-if (!hook || !track) throw new Error('One or more required environment variables are not set!')
-track = track.split(',')
+if (!id || !secret || !hook || !track) throw new Error('One or more required environment variables are not set!')
 
-let feed = new Corrin(track.map(x => [async () => recent(x), x => x.id]))
+track = track.split(',')
+let api = new API(process.env.CLIENT_ID, process.env.CLIENT_SECRET)
+
+let feed = new Corrin(track.map(x => [async () => api.scores('recent', x), x => x.id]), interval)
 console.log(`Tracking: (${track.join(', ')})`)
 
 feed.on('new', async items => {
@@ -28,16 +35,6 @@ feed.on('new', async items => {
     })
   }
 })
-
-async function recent (id, retries = 5) {
-  if (retries <= 0) throw new Error('Could not fetch site')
-  try {
-    let { body } = await dp('https://osu.ppy.sh/users/' + id)
-    let pointer = body.indexOf('json-extras') + 37
-    let json = JSON.parse(body.substring(pointer, body.indexOf('</script>', pointer)))
-    return json.scoresRecent
-  } catch (e) { return recent(id, --retries) }
-}
 
 async function embed (item) {
   let rank = RANK[item.rank]
@@ -126,6 +123,7 @@ function log (item) {
 }
 
 let RANK = {
+  F: { img: '', color: 0 },
   D: { img: 'https://i.imgur.com/qiI2lGV.png', color: 9967895 },
   C: { img: 'https://i.imgur.com/kkvExOR.png', color: 14377691 },
   B: { img: 'https://i.imgur.com/njIcLQV.png', color: 3492295 },
