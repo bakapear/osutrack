@@ -3,7 +3,7 @@ let oj = require('ojsama')
 let Corrin = require('corrin')
 let API = require('./API')
 
-let interval = 5000 // increase this if you have many users to track
+let interval = 15000 // increase this if you have many users to track
 
 let id = process.env.CLIENT_ID
 let secret = process.env.CLIENT_SECRET
