@@ -43,7 +43,7 @@ async function embed (item) {
   let accuracy = (item.accuracy * 100).toFixed(2)
   let data = await calc(map.id, parseFloat(accuracy), item.max_combo, stats.count_miss, item.mods.join(''))
   let cover = item.beatmapset.covers.slimcover
-  if (!await dp.head(cover).catch(e => false)) cover = 'https://i.imgur.com/DNZTUG0.png'
+  if (!await dp.head(cover).catch(e => false)) cover = COVER
   return {
     color: rank.color,
     title: `${item.beatmapset.title} [${map.version} ★ ${map.difficulty_rating}]` +
@@ -122,14 +122,18 @@ function log (item) {
   ].join(' '))
 }
 
+let BASE = 'https://raw.githubusercontent.com/bakapear/osutrack/master/files/'
+
 let RANK = {
   F: { img: '', color: 0 },
-  D: { img: 'https://i.imgur.com/qiI2lGV.png', color: 9967895 },
-  C: { img: 'https://i.imgur.com/kkvExOR.png', color: 14377691 },
-  B: { img: 'https://i.imgur.com/njIcLQV.png', color: 3492295 },
-  A: { img: 'https://i.imgur.com/RGOohGm.png', color: 6795600 },
-  S: { img: 'https://i.imgur.com/UcekL5e.png', color: 14598211 },
-  SH: { img: 'https://i.imgur.com/cvTSy9Q.png', color: 12308694 },
-  X: { img: 'https://i.imgur.com/w8uxl3o.png', color: 14598211 },
-  XH: { img: 'https://i.imgur.com/LEJgPJs.png', color: 12308694 }
+  D: { img: BASE + 'ranks/D.png', color: 9967895 },
+  C: { img: BASE + 'ranks/C.png', color: 14377691 },
+  B: { img: BASE + 'ranks/B.png', color: 3492295 },
+  A: { img: BASE + 'ranks/A.png', color: 6795600 },
+  S: { img: BASE + 'ranks/S.png', color: 14598211 },
+  SH: { img: BASE + 'ranks/SH.png', color: 12308694 },
+  X: { img: BASE + 'ranks/X.png', color: 14598211 },
+  XH: { img: BASE + 'ranks/XH.png', color: 12308694 }
 }
+
+let COVER = BASE + 'slimcover.png'
