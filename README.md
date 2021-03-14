@@ -3,7 +3,7 @@ Posts your recent osu! scores to a Discord webhook
 
 ### Requirements
 - [NodeJS](https://nodejs.org/)
-- [osu! oAuth client credentials](https://osu.ppy.sh/docs/)
+- [osu! oAuth client credentials](https://osu.ppy.sh/docs/#registering-an-oauth-application)
 
 ### Installation
 1. [Download this repository](https://github.com/bakapear/osutrack/archive/master.zip) and extract it
