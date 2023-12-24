@@ -1,5 +1,8 @@
 let dp = require('despair')
-let oj = require('ojsama')
+
+let { ScoreCalculator } = require('@kionell/osu-pp-calculator')
+let ppcalc = new ScoreCalculator()
+
 let Corrin = require('corrin')
 let API = require('./API')
 
@@ -13,7 +16,7 @@ let track = process.env.TRACK
 if (!id || !secret || !hook || !track) throw new Error('One or more required environment variables are not set!')
 
 track = track.split(',')
-let api = new API(process.env.CLIENT_ID, process.env.CLIENT_SECRET)
+let api = new API(id, secret)
 
 let feed = new Corrin(track.map(x => [async () => api.scores('recent', x), x => x.id]), interval)
 console.log(`Tracking: (${track.join(', ')})`)
@@ -28,10 +31,10 @@ feed.on('new', async items => {
       embeds.push(await embed(item))
       log(item)
     }
-    send({
+    await send({
       username: user.name,
       avatar_url: user.avatar,
-      embeds: embeds
+      embeds
     })
   }
 })
@@ -41,7 +44,7 @@ async function embed (item) {
   let stats = item.statistics
   let map = item.beatmap
   let accuracy = (item.accuracy * 100).toFixed(2)
-  let data = await calc(map.id, parseFloat(accuracy), item.max_combo, stats.count_miss, item.mods.join(''))
+  let data = await calc(item)
   let cover = item.beatmapset.covers.slimcover
   if (!await dp.head(cover).catch(e => false)) cover = COVER
   return {
@@ -82,17 +85,34 @@ async function embed (item) {
   }
 }
 
-async function calc (id, acc, combo, miss, mods) {
-  let { body } = await dp('https://osu.ppy.sh/osu/' + id)
-  let Parser = oj.parser
-  const { map } = new Parser().feed(body)
-  map.mode = Number(map.mode || 0)
+let RULESETS = ['osu', 'taiko', 'fruits', 'mania']
+
+async function calc (item) {
+  let MAP = {
+    beatmapId: item.beatmap.id,
+    rulesetId: RULESETS.indexOf(item.type.slice(6)),
+    mods: item.mods.join('')
+  }
+
+  if (MAP.rulesetId === -1) MAP.rulesetId = 0 // default to standard
+
+  let a = await ppcalc.calculate({ ...MAP, accuracy: [100] })
+  let b = await ppcalc.calculate({
+    ...MAP,
+    accuracy: item.accuracy * 100,
+    totalScore: item.score,
+    maxCombo: item.max_combo,
+    count50: item.statistics.count_50,
+    count100: item.statistics.count_100,
+    count300: item.statistics.count_300,
+    countGeki: item.statistics.count_geki,
+    countKatu: item.statistics.count_katu,
+    countMiss: item.statistics.count_miss
+  })
+
   return {
-    max_combo: map.max_combo(),
-    pp: {
-      gain: parseInt(oj.ppv2({ map, acc_percent: parseFloat(acc), combo: combo, nmiss: miss, mods: oj.modbits.from_string(mods) }).total),
-      total: parseInt(oj.ppv2({ map, mods: oj.modbits.from_string(mods) }).total)
-    }
+    pp: { gain: b.scoreInfo.totalPerformance.toFixed(0), total: a.scoreInfo.totalPerformance.toFixed(0) },
+    max_combo: a.scoreInfo.maxCombo
   }
 }
 
@@ -108,11 +128,13 @@ function time (ms) {
   return t.join(':')
 }
 
-function send (obj) {
-  dp.post(hook, {
-    data: obj,
-    type: 'json'
-  })
+async function send (obj) {
+  try {
+    await dp.post(hook, {
+      data: obj,
+      type: 'json'
+    })
+  } catch (e) { console.log('HOOK ERROR:', e) }
 }
 
 function log (item) {

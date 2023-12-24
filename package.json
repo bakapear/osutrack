@@ -17,8 +17,8 @@
   },
   "homepage": "https://github.com/bakapear/osutrack#readme",
   "dependencies": {
+    "@kionell/osu-pp-calculator": "^4.0.0",
     "corrin": "^1.1.2",
-    "despair": "^2.1.2",
-    "ojsama": "^2.1.0"
+    "despair": "^2.1.2"
   }
 }
